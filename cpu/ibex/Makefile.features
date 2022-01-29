@@ -1,0 +1,9 @@
+# TODO: rv32imc?
+CPU_CORE := rv32imac
+
+FEATURES_PROVIDED += periph_gpio
+FEATURES_PROVIDED += periph_pm
+FEATURES_PROVIDED += periph_uart
+
+include $(RIOTCPU)/riscv_common/Makefile.features
+

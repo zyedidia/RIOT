@@ -1,0 +1,10 @@
+config BOARD
+    default "axum" if BOARD_AXUM
+
+config BOARD_AXUM
+    bool
+    default y
+    select CPU_MODEL_IBEX_AXUM
+    # select HAS_PERIPH_TIMER
+    # select HAS_PERIPH_UART
+

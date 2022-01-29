@@ -1,0 +1,8 @@
+USEMODULE += periph
+# USEMODULE += sifive_drivers_fe310
+
+# ifneq (,$(filter periph_timer,$(USEMODULE)))
+#   FEATURES_REQUIRED += periph_coretimer
+# endif
+
+include $(RIOTCPU)/riscv_common/Makefile.dep
