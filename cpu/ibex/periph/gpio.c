@@ -24,7 +24,7 @@ typedef struct {
     unsigned out_xor;
 } gpio_reg_t;
 
-static volatile gpio_reg_t* const gpio = (gpio_reg_t*) GPIO_CTRL_ADDR;
+static volatile gpio_reg_t* const gpio = (volatile gpio_reg_t*) GPIO_CTRL_ADDR;
 
 int gpio_init(gpio_t pin, gpio_mode_t mode)
 {

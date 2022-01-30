@@ -12,6 +12,7 @@
     .globl _start
     .type _start,@function
 
+.org 0x80
 _start:
     .cfi_startproc
     .cfi_undefined ra
