@@ -26,7 +26,7 @@
 extern "C" {
 #endif
 
-#define CLOCK_CORECLOCK 28000000
+#define CLOCK_CORECLOCK 28000000UL
 
 #ifdef __cplusplus
 }

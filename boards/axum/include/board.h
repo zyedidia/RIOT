@@ -2,11 +2,14 @@
 #define BOARD_H
 
 #include "cpu.h"
+#include "clk_conf.h"
 #include "periph/gpio.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#define CONFIG_ZTIMER_USEC_BASE_FREQ CLOCK_CORECLOCK
 
 /**
  * @name    Macros for controlling the on-board LEDs

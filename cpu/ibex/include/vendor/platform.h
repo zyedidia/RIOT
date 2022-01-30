@@ -7,6 +7,7 @@
 
 #include "vendor/gpio.h"
 #include "vendor/uart.h"
+#include "vendor/timer.h"
 
 
 /****************************************************************************
@@ -119,7 +120,7 @@
 // #define PLIC_NUM_INTERRUPTS 52
 // #define PLIC_NUM_PRIORITIES 7
 //
-// #define RTC_FREQ 			32768
+// #define RTC_FREQ 			28000000
 //
 // #define ITIM_MEM_LEN		8192
 

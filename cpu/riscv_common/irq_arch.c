@@ -96,12 +96,10 @@ static void handle_trap(uint32_t mcause)
         /* Cause is an interrupt - determine type */
         switch (mcause & MCAUSE_CAUSE) {
 
-#ifdef MODULE_PERIPH_CORETIMER
         case IRQ_M_TIMER:
             /* Handle timer interrupt */
             timer_isr();
             break;
-#endif
         case IRQ_M_EXT:
             /* Handle external interrupt */
             if (IS_ACTIVE(MODULE_PERIPH_PLIC)) {
