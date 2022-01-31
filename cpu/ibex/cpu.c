@@ -16,7 +16,7 @@ void cpu_init(void)
     riscv_init();
 
     /* Initialize stdio */
-    /* stdio_init(); */
+    stdio_init();
 
     /* Initialize static peripheral */
     periph_init();

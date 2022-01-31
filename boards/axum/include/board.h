@@ -10,6 +10,10 @@ extern "C" {
 #endif
 
 #define CONFIG_ZTIMER_USEC_BASE_FREQ CLOCK_CORECLOCK
+#ifndef STDIO_UART_BAUDRATE
+#define STDIO_UART_BAUDRATE      (115200)
+#endif
+
 
 /**
  * @name    Macros for controlling the on-board LEDs
