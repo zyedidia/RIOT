@@ -32,6 +32,60 @@
 extern "C" {
 #endif
 
+typedef enum {
+    RF_CTX_NORMAL = 0,
+    RF_CTX_EXC = 1,
+    RF_CTX_IRQ = 2,
+    RF_CTX_ECALL = 3,
+} rf_ctx_t;
+
+typedef struct {
+    uint32_t pc;
+    uint32_t ra;
+    uint32_t sp;
+    uint32_t gp;
+    uint32_t tp;
+    uint32_t t0;
+    uint32_t t1;
+    uint32_t t2;
+    uint32_t s0;
+    uint32_t s1;
+    uint32_t a0;
+    uint32_t a1;
+    uint32_t a2;
+    uint32_t a3;
+    uint32_t a4;
+    uint32_t a5;
+    uint32_t a6;
+    uint32_t a7;
+    uint32_t s2;
+    uint32_t s3;
+    uint32_t s4;
+    uint32_t s5;
+    uint32_t s6;
+    uint32_t s7;
+    uint32_t s8;
+    uint32_t s9;
+    uint32_t s10;
+    uint32_t s11;
+    uint32_t t3;
+    uint32_t t4;
+    uint32_t t5;
+    uint32_t t6;
+} regs_t;
+
+static volatile regs_t* const rf = (volatile regs_t*) 0x10000;
+
+static inline volatile regs_t* rf_regs(rf_ctx_t ctx) {
+    return &rf[ctx];
+}
+
+static inline __attribute__((always_inline)) void set_trap_ret(uint32_t addr) {
+    write_csr(mepc, addr);
+    register uint32_t ra __asm__ ("ra") = addr;
+    (void) ra;
+}
+
 /**
  * @brief   Bit mask for the MCAUSE register
  */

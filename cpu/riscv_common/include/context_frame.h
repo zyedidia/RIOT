@@ -38,39 +38,38 @@ extern "C" {
  *
  */
 struct context_switch_frame {
-    /* Callee saved registers */
-    uint32_t s0;                    /**< s0 register */
-    uint32_t s1;                    /**< s1 register */
-    uint32_t s2;                    /**< s2 register */
-    uint32_t s3;                    /**< s3 register */
-    uint32_t s4;                    /**< s4 register */
-    uint32_t s5;                    /**< s5 register */
-    uint32_t s6;                    /**< s6 register */
-    uint32_t s7;                    /**< s7 register */
-    uint32_t s8;                    /**< s8 register */
-    uint32_t s9;                    /**< s9 register */
-    uint32_t s10;                   /**< s10 register */
-    uint32_t s11;                   /**< s11 register */
-    /* Caller saved registers */
-    uint32_t ra;                    /**< ra register */
-    uint32_t t0;                    /**< t0 register */
-    uint32_t t1;                    /**< t1 register */
-    uint32_t t2;                    /**< t2 register */
-    uint32_t t3;                    /**< t3 register */
-    uint32_t t4;                    /**< t4 register */
-    uint32_t t5;                    /**< t5 register */
-    uint32_t t6;                    /**< t6 register */
-    uint32_t a0;                    /**< a0 register */
-    uint32_t a1;                    /**< a1 register */
-    uint32_t a2;                    /**< a2 register */
-    uint32_t a3;                    /**< a3 register */
-    uint32_t a4;                    /**< a4 register */
-    uint32_t a5;                    /**< a5 register */
-    uint32_t a6;                    /**< a6 register */
-    uint32_t a7;                    /**< a7 register */
-    /* Saved PC for return from ISR */
-    uint32_t pc;                    /**< program counter */
-    uint32_t pad[3];                /**< padding to maintain 16 byte alignment */
+    uint32_t pc;
+    uint32_t ra;
+    uint32_t sp;
+    uint32_t gp;
+    uint32_t tp;
+    uint32_t t0;
+    uint32_t t1;
+    uint32_t t2;
+    uint32_t s0;
+    uint32_t s1;
+    uint32_t a0;
+    uint32_t a1;
+    uint32_t a2;
+    uint32_t a3;
+    uint32_t a4;
+    uint32_t a5;
+    uint32_t a6;
+    uint32_t a7;
+    uint32_t s2;
+    uint32_t s3;
+    uint32_t s4;
+    uint32_t s5;
+    uint32_t s6;
+    uint32_t s7;
+    uint32_t s8;
+    uint32_t s9;
+    uint32_t s10;
+    uint32_t s11;
+    uint32_t t3;
+    uint32_t t4;
+    uint32_t t5;
+    uint32_t t6;
 };
 
 #endif /* __ASSEMBLER__ */
