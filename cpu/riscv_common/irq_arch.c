@@ -30,6 +30,7 @@
 #include "sched.h"
 #include "plic.h"
 #include "clic.h"
+#include "thread.h"
 
 #include "vendor/riscv_csr.h"
 
@@ -48,8 +49,22 @@ static void trap_entry(void);
  */
 void timer_isr(void);
 
+extern char _sp;
+
 void riscv_irq_init(void)
 {
+    rf_regs(RF_CTX_EXC)->sp = (uint32_t) &_sp;
+    rf_regs(RF_CTX_IRQ)->sp = (uint32_t) &_sp;
+    rf_regs(RF_CTX_ECALL)->sp = (uint32_t) &_sp;
+
+    uint32_t gp;
+
+    __asm__ volatile ("\t mv %0, gp" : "=r"(gp));
+
+    rf_regs(RF_CTX_EXC)->gp = gp;
+    rf_regs(RF_CTX_IRQ)->gp = gp;
+    rf_regs(RF_CTX_ECALL)->gp = gp;
+
     /* Setup trap handler function */
     if (IS_ACTIVE(MODULE_PERIPH_CLIC)) {
         /* Signal CLIC usage to the core */
@@ -146,6 +161,100 @@ static void handle_trap(uint32_t mcause)
     riscv_in_isr = 0;
 }
 
+static void __attribute__((used)) ctrap_entry(void)
+{
+    handle_trap(read_csr(mcause));
+
+    extern volatile thread_t* sched_active_thread;
+
+    // restore to caller if there is no context switch requested,
+    // or a context switch is not required by the scheduler
+    if (!sched_context_switch_request) {
+        return;
+    }
+
+    volatile thread_t* prev_active_thread = sched_active_thread;
+
+    if (!sched_run()) {
+        return;
+    }
+
+    volatile regs_t* regs = rf_regs(RF_CTX_NORMAL);
+
+    if (prev_active_thread) {
+        // save all registers
+        regs->sp -= sizeof(struct context_switch_frame);
+        struct context_switch_frame* prev_thread_sf = (struct context_switch_frame*) regs->sp;
+
+        prev_thread_sf->s0 = regs->s0;
+        prev_thread_sf->s1 = regs->s1;
+        prev_thread_sf->s2 = regs->s2;
+        prev_thread_sf->s3 = regs->s3;
+        prev_thread_sf->s4 = regs->s4;
+        prev_thread_sf->s5 = regs->s5;
+        prev_thread_sf->s6 = regs->s6;
+        prev_thread_sf->s7 = regs->s7;
+        prev_thread_sf->s8 = regs->s8;
+        prev_thread_sf->s9 = regs->s9;
+        prev_thread_sf->s10 = regs->s10;
+        prev_thread_sf->s11 = regs->s11;
+        prev_thread_sf->ra = regs->ra;
+        prev_thread_sf->t0 = regs->t0;
+        prev_thread_sf->t1 = regs->t1;
+        prev_thread_sf->t2 = regs->t2;
+        prev_thread_sf->t3 = regs->t3;
+        prev_thread_sf->t4 = regs->t4;
+        prev_thread_sf->t5 = regs->t5;
+        prev_thread_sf->t6 = regs->t6;
+        prev_thread_sf->a0 = regs->a0;
+        prev_thread_sf->a1 = regs->a1;
+        prev_thread_sf->a2 = regs->a2;
+        prev_thread_sf->a3 = regs->a3;
+        prev_thread_sf->a4 = regs->a4;
+        prev_thread_sf->a5 = regs->a5;
+        prev_thread_sf->a6 = regs->a6;
+        prev_thread_sf->a7 = regs->a7;
+
+        prev_thread_sf->pc = read_csr(mepc);
+
+        prev_active_thread->sp = (char*) regs->sp;
+    }
+
+    struct context_switch_frame* thread_sf = (struct context_switch_frame*) (void*) sched_active_thread->sp;
+
+    regs->s0 = thread_sf->s0;
+    regs->s1 = thread_sf->s1;
+    regs->s2 = thread_sf->s2;
+    regs->s3 = thread_sf->s3;
+    regs->s4 = thread_sf->s4;
+    regs->s5 = thread_sf->s5;
+    regs->s6 = thread_sf->s6;
+    regs->s7 = thread_sf->s7;
+    regs->s8 = thread_sf->s8;
+    regs->s9 = thread_sf->s9;
+    regs->s10 = thread_sf->s10;
+    regs->s11 = thread_sf->s11;
+    regs->ra = thread_sf->ra;
+    regs->t0 = thread_sf->t0;
+    regs->t1 = thread_sf->t1;
+    regs->t2 = thread_sf->t2;
+    regs->t3 = thread_sf->t3;
+    regs->t4 = thread_sf->t4;
+    regs->t5 = thread_sf->t5;
+    regs->t6 = thread_sf->t6;
+    regs->a0 = thread_sf->a0;
+    regs->a1 = thread_sf->a1;
+    regs->a2 = thread_sf->a2;
+    regs->a3 = thread_sf->a3;
+    regs->a4 = thread_sf->a4;
+    regs->a5 = thread_sf->a5;
+    regs->a6 = thread_sf->a6;
+    regs->a7 = thread_sf->a7;
+
+    write_csr(mepc, thread_sf->pc);
+    regs->sp = (uint32_t) thread_sf + sizeof(struct context_switch_frame);
+}
+
 /* Marking this as interrupt to ensure an mret at the end, provided by the
  * compiler. Aligned to 64-byte boundary as per RISC-V spec and required by some
  * of the supported platforms (gd32)*/
@@ -153,136 +262,7 @@ __attribute((aligned(64)))
 static void __attribute__((interrupt)) trap_entry(void)
 {
     __asm__ volatile (
-        "addi sp, sp, -"XTSTR (CONTEXT_FRAME_SIZE)"          \n"
-
-        /* Save caller-saved registers */
-        "sw ra, "XTSTR (ra_OFFSET)"(sp)                      \n"
-        "sw t0, "XTSTR (t0_OFFSET)"(sp)                      \n"
-        "sw t1, "XTSTR (t1_OFFSET)"(sp)                      \n"
-        "sw t2, "XTSTR (t2_OFFSET)"(sp)                      \n"
-        "sw t3, "XTSTR (t3_OFFSET)"(sp)                      \n"
-        "sw t4, "XTSTR (t4_OFFSET)"(sp)                      \n"
-        "sw t5, "XTSTR (t5_OFFSET)"(sp)                      \n"
-        "sw t6, "XTSTR (t6_OFFSET)"(sp)                      \n"
-        "sw a0, "XTSTR (a0_OFFSET)"(sp)                      \n"
-        "sw a1, "XTSTR (a1_OFFSET)"(sp)                      \n"
-        "sw a2, "XTSTR (a2_OFFSET)"(sp)                      \n"
-        "sw a3, "XTSTR (a3_OFFSET)"(sp)                      \n"
-        "sw a4, "XTSTR (a4_OFFSET)"(sp)                      \n"
-        "sw a5, "XTSTR (a5_OFFSET)"(sp)                      \n"
-        "sw a6, "XTSTR (a6_OFFSET)"(sp)                      \n"
-        "sw a7, "XTSTR (a7_OFFSET)"(sp)                      \n"
-
-        /* Save s0 and s1 extra for the active thread and the stack ptr */
-        "sw s0, "XTSTR (s0_OFFSET)"(sp)                      \n"
-        "sw s1, "XTSTR (s1_OFFSET)"(sp)                      \n"
-
-        /* Save the user stack ptr */
-        "mv s0, sp                                          \n"
-        /* Load exception stack ptr */
-        "la sp, _sp                                         \n"
-
-        /* Get the interrupt cause */
-        "csrr a0, mcause                                    \n"
-
-        /* Call trap handler, a0 contains mcause before, and the return value after
-         * the call */
-        "call handle_trap                                   \n"
-
-        /* Load the sched_context_switch_request */
-        "lw a0, sched_context_switch_request                \n"
-
-        /* And skip the context switch if not requested */
-        "beqz a0, no_sched                                  \n"
-
-        /*  Get the previous active thread (could be NULL) */
-        "lw s1, sched_active_thread                         \n"
-
-        /* Run the scheduler */
-        "call sched_run                                     \n"
-
-        "no_sched:                                          \n"
-        /* Restore the thread stack pointer and check if a new thread must be
-         * scheduled */
-        "mv sp, s0                                          \n"
-
-        /* No context switch required, shortcut to restore. a0 contains the return
-         * value of sched_run, or the sched_context_switch_request if the sched_run
-         * was skipped */
-        "beqz a0, no_switch                                 \n"
-
-        /* Skips the rest of the save if no active thread */
-        "beqz s1, null_thread                               \n"
-
-        /* Store s2-s11 */
-        "sw s2, "XTSTR (s2_OFFSET)"(sp)                      \n"
-        "sw s3, "XTSTR (s3_OFFSET)"(sp)                      \n"
-        "sw s4, "XTSTR (s4_OFFSET)"(sp)                      \n"
-        "sw s5, "XTSTR (s5_OFFSET)"(sp)                      \n"
-        "sw s6, "XTSTR (s6_OFFSET)"(sp)                      \n"
-        "sw s7, "XTSTR (s7_OFFSET)"(sp)                      \n"
-        "sw s8, "XTSTR (s8_OFFSET)"(sp)                      \n"
-        "sw s9, "XTSTR (s9_OFFSET)"(sp)                      \n"
-        "sw s10, "XTSTR (s10_OFFSET)"(sp)                    \n"
-        "sw s11, "XTSTR (s11_OFFSET)"(sp)                    \n"
-
-        /* Grab mepc to save it to the stack */
-        "csrr s2, mepc                                      \n"
-
-        /* Save return PC in stack frame */
-        "sw s2, "XTSTR (pc_OFFSET)"(sp)                      \n"
-
-        /* Save stack pointer of current thread */
-        "sw sp, "XTSTR (SP_OFFSET_IN_THREAD)"(s1)            \n"
-
-        /* Context saving done, from here on the new thread is scheduled */
-        "null_thread:                                       \n"
-
-        /*  Get the new active thread (guaranteed to be non NULL) */
-        "lw s1, sched_active_thread                         \n"
-
-        /*  Load the thread SP of scheduled thread */
-        "lw sp, "XTSTR (SP_OFFSET_IN_THREAD)"(s1)            \n"
-
-        /*  Set return PC to mepc */
-        "lw a1, "XTSTR (pc_OFFSET)"(sp)                      \n"
-        "csrw mepc, a1                                      \n"
-
-        /* restore s2-s11 */
-        "lw s2, "XTSTR (s2_OFFSET)"(sp)                      \n"
-        "lw s3, "XTSTR (s3_OFFSET)"(sp)                      \n"
-        "lw s4, "XTSTR (s4_OFFSET)"(sp)                      \n"
-        "lw s5, "XTSTR (s5_OFFSET)"(sp)                      \n"
-        "lw s6, "XTSTR (s6_OFFSET)"(sp)                      \n"
-        "lw s7, "XTSTR (s7_OFFSET)"(sp)                      \n"
-        "lw s8, "XTSTR (s8_OFFSET)"(sp)                      \n"
-        "lw s9, "XTSTR (s9_OFFSET)"(sp)                      \n"
-        "lw s10, "XTSTR (s10_OFFSET)"(sp)                    \n"
-        "lw s11, "XTSTR (s11_OFFSET)"(sp)                    \n"
-
-        "no_switch:                                         \n"
-
-        /* restore the caller-saved registers */
-        "lw ra, "XTSTR (ra_OFFSET)"(sp)                      \n"
-        "lw t0, "XTSTR (t0_OFFSET)"(sp)                      \n"
-        "lw t1, "XTSTR (t1_OFFSET)"(sp)                      \n"
-        "lw t2, "XTSTR (t2_OFFSET)"(sp)                      \n"
-        "lw t3, "XTSTR (t3_OFFSET)"(sp)                      \n"
-        "lw t4, "XTSTR (t4_OFFSET)"(sp)                      \n"
-        "lw t5, "XTSTR (t5_OFFSET)"(sp)                      \n"
-        "lw t6, "XTSTR (t6_OFFSET)"(sp)                      \n"
-        "lw a0, "XTSTR (a0_OFFSET)"(sp)                      \n"
-        "lw a1, "XTSTR (a1_OFFSET)"(sp)                      \n"
-        "lw a2, "XTSTR (a2_OFFSET)"(sp)                      \n"
-        "lw a3, "XTSTR (a3_OFFSET)"(sp)                      \n"
-        "lw a4, "XTSTR (a4_OFFSET)"(sp)                      \n"
-        "lw a5, "XTSTR (a5_OFFSET)"(sp)                      \n"
-        "lw a6, "XTSTR (a6_OFFSET)"(sp)                      \n"
-        "lw a7, "XTSTR (a7_OFFSET)"(sp)                      \n"
-        "lw s0, "XTSTR (s0_OFFSET)"(sp)                      \n"
-        "lw s1, "XTSTR (s1_OFFSET)"(sp)                      \n"
-
-        "addi sp, sp, "XTSTR (CONTEXT_FRAME_SIZE)"           \n"
+        "call ctrap_entry\n"
         :
         :
         :
