@@ -163,26 +163,25 @@ static void handle_trap(uint32_t mcause)
 
 static void __attribute__((used)) ctrap_entry(void)
 {
-    handle_trap(read_csr(mcause));
-
     extern volatile thread_t* sched_active_thread;
 
-    // restore to caller if there is no context switch requested,
-    // or a context switch is not required by the scheduler
-    if (!sched_context_switch_request) {
-        return;
-    }
+    handle_trap(read_csr(mcause));
 
     volatile thread_t* prev_active_thread = sched_active_thread;
 
-    if (!sched_run()) {
+    // restore to caller if there is no context switch requested,
+    // or a context switch is not required by the scheduler
+    if (!sched_context_switch_request || !sched_run()) {
         return;
     }
+
+    // context switch
 
     volatile regs_t* regs = rf_regs(RF_CTX_NORMAL);
 
     if (prev_active_thread) {
-        // save all registers
+        // save the previously active thread by constructing a context switch
+        // frame on the thread's stack and copying all of its registers.
         regs->sp -= sizeof(struct context_switch_frame);
         struct context_switch_frame* prev_thread_sf = (struct context_switch_frame*) regs->sp;
         regscpy(prev_thread_sf, regs);
@@ -190,6 +189,7 @@ static void __attribute__((used)) ctrap_entry(void)
         prev_active_thread->sp = (char*) regs->sp;
     }
 
+    // switch to the requested thread by copying all of its registers out of its context switch frame
     struct context_switch_frame* thread_sf = (struct context_switch_frame*) (void*) sched_active_thread->sp;
     regscpy(regs, thread_sf);
     write_csr(mepc, thread_sf->pc);
