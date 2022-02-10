@@ -182,24 +182,23 @@ static void __attribute__((used)) ctrap_entry(void)
     if (prev_active_thread) {
         // save the previously active thread by constructing a context switch
         // frame on the thread's stack and copying all of its registers.
-        regs->sp -= sizeof(struct context_switch_frame);
-        struct context_switch_frame* prev_thread_sf = (struct context_switch_frame*) regs->sp;
+        struct context_switch_frame* prev_thread_sf = (struct context_switch_frame*) (regs->sp - sizeof(struct context_switch_frame));
         regscpy(prev_thread_sf, regs);
         prev_thread_sf->pc = read_csr(mepc);
-        prev_active_thread->sp = (char*) regs->sp;
+        prev_active_thread->sp = (char*) prev_thread_sf;
     }
 
     // switch to the requested thread by copying all of its registers out of its context switch frame
     struct context_switch_frame* thread_sf = (struct context_switch_frame*) (void*) sched_active_thread->sp;
     regscpy(regs, thread_sf);
     write_csr(mepc, thread_sf->pc);
-    regs->sp = (uint32_t) thread_sf + sizeof(struct context_switch_frame);
+    regs->sp = (uint32_t) sched_active_thread->sp + sizeof(struct context_switch_frame);
 }
 
 /* Marking this as interrupt to ensure an mret at the end, provided by the
  * compiler. Aligned to 64-byte boundary as per RISC-V spec and required by some
  * of the supported platforms (gd32)*/
-__attribute((aligned(64)))
+__attribute__((aligned(64)))
 static void __attribute__((interrupt)) trap_entry(void)
 {
     __asm__ volatile (
