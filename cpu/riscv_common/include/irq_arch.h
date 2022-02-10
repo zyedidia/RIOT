@@ -87,6 +87,37 @@ static inline volatile regs_t* rf_regs(rf_ctx_t ctx) {
     return &rf[ctx];
 }
 
+#define regscpy(r1, r2) do { \
+    r1->s0 = r2->s0; \
+    r1->s1 = r2->s1; \
+    r1->s2 = r2->s2; \
+    r1->s3 = r2->s3; \
+    r1->s4 = r2->s4; \
+    r1->s5 = r2->s5; \
+    r1->s6 = r2->s6; \
+    r1->s7 = r2->s7; \
+    r1->s8 = r2->s8; \
+    r1->s9 = r2->s9; \
+    r1->s10 = r2->s10; \
+    r1->s11 = r2->s11; \
+    r1->ra = r2->ra; \
+    r1->t0 = r2->t0; \
+    r1->t1 = r2->t1; \
+    r1->t2 = r2->t2; \
+    r1->t3 = r2->t3; \
+    r1->t4 = r2->t4; \
+    r1->t5 = r2->t5; \
+    r1->t6 = r2->t6; \
+    r1->a0 = r2->a0; \
+    r1->a1 = r2->a1; \
+    r1->a2 = r2->a2; \
+    r1->a3 = r2->a3; \
+    r1->a4 = r2->a4; \
+    r1->a5 = r2->a5; \
+    r1->a6 = r2->a6; \
+    r1->a7 = r2->a7; \
+    } while (0)
+
 /**
  * @brief Enable all maskable interrupts
  */

@@ -185,72 +185,13 @@ static void __attribute__((used)) ctrap_entry(void)
         // save all registers
         regs->sp -= sizeof(struct context_switch_frame);
         struct context_switch_frame* prev_thread_sf = (struct context_switch_frame*) regs->sp;
-
-        prev_thread_sf->s0 = regs->s0;
-        prev_thread_sf->s1 = regs->s1;
-        prev_thread_sf->s2 = regs->s2;
-        prev_thread_sf->s3 = regs->s3;
-        prev_thread_sf->s4 = regs->s4;
-        prev_thread_sf->s5 = regs->s5;
-        prev_thread_sf->s6 = regs->s6;
-        prev_thread_sf->s7 = regs->s7;
-        prev_thread_sf->s8 = regs->s8;
-        prev_thread_sf->s9 = regs->s9;
-        prev_thread_sf->s10 = regs->s10;
-        prev_thread_sf->s11 = regs->s11;
-        prev_thread_sf->ra = regs->ra;
-        prev_thread_sf->t0 = regs->t0;
-        prev_thread_sf->t1 = regs->t1;
-        prev_thread_sf->t2 = regs->t2;
-        prev_thread_sf->t3 = regs->t3;
-        prev_thread_sf->t4 = regs->t4;
-        prev_thread_sf->t5 = regs->t5;
-        prev_thread_sf->t6 = regs->t6;
-        prev_thread_sf->a0 = regs->a0;
-        prev_thread_sf->a1 = regs->a1;
-        prev_thread_sf->a2 = regs->a2;
-        prev_thread_sf->a3 = regs->a3;
-        prev_thread_sf->a4 = regs->a4;
-        prev_thread_sf->a5 = regs->a5;
-        prev_thread_sf->a6 = regs->a6;
-        prev_thread_sf->a7 = regs->a7;
-
+        regscpy(prev_thread_sf, regs);
         prev_thread_sf->pc = read_csr(mepc);
-
         prev_active_thread->sp = (char*) regs->sp;
     }
 
     struct context_switch_frame* thread_sf = (struct context_switch_frame*) (void*) sched_active_thread->sp;
-
-    regs->s0 = thread_sf->s0;
-    regs->s1 = thread_sf->s1;
-    regs->s2 = thread_sf->s2;
-    regs->s3 = thread_sf->s3;
-    regs->s4 = thread_sf->s4;
-    regs->s5 = thread_sf->s5;
-    regs->s6 = thread_sf->s6;
-    regs->s7 = thread_sf->s7;
-    regs->s8 = thread_sf->s8;
-    regs->s9 = thread_sf->s9;
-    regs->s10 = thread_sf->s10;
-    regs->s11 = thread_sf->s11;
-    regs->ra = thread_sf->ra;
-    regs->t0 = thread_sf->t0;
-    regs->t1 = thread_sf->t1;
-    regs->t2 = thread_sf->t2;
-    regs->t3 = thread_sf->t3;
-    regs->t4 = thread_sf->t4;
-    regs->t5 = thread_sf->t5;
-    regs->t6 = thread_sf->t6;
-    regs->a0 = thread_sf->a0;
-    regs->a1 = thread_sf->a1;
-    regs->a2 = thread_sf->a2;
-    regs->a3 = thread_sf->a3;
-    regs->a4 = thread_sf->a4;
-    regs->a5 = thread_sf->a5;
-    regs->a6 = thread_sf->a6;
-    regs->a7 = thread_sf->a7;
-
+    regscpy(regs, thread_sf);
     write_csr(mepc, thread_sf->pc);
     regs->sp = (uint32_t) thread_sf + sizeof(struct context_switch_frame);
 }
