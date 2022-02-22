@@ -162,6 +162,10 @@ static void handle_trap(uint32_t mcause)
     riscv_in_isr = 0;
 }
 
+#define CSR_MPRF 0x347
+
+#define write_csrx(reg, val) write_csr(reg, val)
+
 static void __attribute__((used)) ctrap_entry(void)
 {
     extern volatile thread_t* sched_active_thread;
@@ -184,7 +188,7 @@ static void __attribute__((used)) ctrap_entry(void)
     }
 
     // write to mprf
-    write_csr(0x347, &sched_active_thread->regs);
+    write_csrx(CSR_MPRF, &sched_active_thread->regs);
     write_csr(mepc, sched_active_thread->pc);
 }
 
