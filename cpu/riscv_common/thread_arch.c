@@ -70,12 +70,15 @@
  * @return                  pointer to the new top of the stack (128bit aligned)
  *
  */
-char *thread_stack_init(thread_task_func_t task_func,
+
+extern regs_t trap_regs;
+
+char *thread_stack_init(thread_t* thread,
+                        thread_task_func_t task_func,
                         void *arg,
                         void *stack_start,
                         int stack_size)
 {
-    struct context_switch_frame *sf;
     uint32_t *stk_top;
 
     /* calculate the top of the stack */
@@ -91,21 +94,18 @@ char *thread_stack_init(thread_task_func_t task_func,
     /* per ABI align stack pointer to 16 byte boundary. */
     stk_top = (uint32_t *)(((uintptr_t)stk_top) & ~((uintptr_t)0xf));
 
-    /* reserve space for the stack frame. */
-    stk_top = (uint32_t *)((uintptr_t)stk_top - sizeof(*sf));
-
-    /* populate the stack frame with default values for starting the thread. */
-    sf = (struct context_switch_frame *)stk_top;
-
     /* Clear stack frame */
-    memset(sf, 0, sizeof(*sf));
+    memset(&thread->regs, 0, sizeof(regs_t));
+
+    thread->regs.gp = trap_regs.gp;
+    thread->regs.sp = (uint32_t) stk_top;
 
     /* set initial reg values */
-    sf->pc = (uint32_t)task_func;
-    sf->a0 = (uint32_t)arg;
+    thread->pc = (uint32_t)task_func;
+    thread->regs.a0 = (uint32_t)arg;
 
     /* if the thread exits go to sched_task_exit() */
-    sf->ra = (uint32_t)sched_task_exit;
+    thread->regs.ra = (uint32_t)sched_task_exit;
 
     return (char *)stk_top;
 }

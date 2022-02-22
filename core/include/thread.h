@@ -167,6 +167,9 @@ typedef void *(*thread_task_func_t)(void *arg);
  * @brief @c thread_t holds thread's context data.
  */
 struct _thread {
+    regs_t regs; // thread's registers
+    uint32_t pc; // thread's program counter
+
     char *sp;                       /**< thread's stack pointer         */
     thread_status_t status;         /**< thread's status                */
     uint8_t priority;               /**< thread's priority              */
@@ -408,7 +411,7 @@ static inline thread_t *thread_get_active(void)
  *
  * @return stack pointer
  */
-char *thread_stack_init(thread_task_func_t task_func, void *arg,
+char *thread_stack_init(thread_t* thread, thread_task_func_t task_func, void *arg,
                         void *stack_start, int stack_size);
 
 /**

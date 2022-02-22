@@ -273,7 +273,7 @@ kernel_pid_t thread_create(char *stack, int stacksize, uint8_t priority,
     sched_threads[pid] = thread;
 
     thread->pid = pid;
-    thread->sp = thread_stack_init(function, arg, stack, stacksize);
+    thread->sp = thread_stack_init(thread, function, arg, stack, stacksize);
 
 #if defined(DEVELHELP) || IS_ACTIVE(SCHED_TEST_STACK) || \
     defined(MODULE_MPU_STACK_GUARD)

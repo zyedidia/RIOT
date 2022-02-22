@@ -20,6 +20,7 @@
 
 #include <stdio.h>
 #include <inttypes.h>
+#include <string.h>
 
 #include "macros/xtstr.h"
 #include "cpu.h"
@@ -51,19 +52,19 @@ void timer_isr(void);
 
 extern char _sp;
 
+regs_t trap_regs;
+
 void riscv_irq_init(void)
 {
-    rf_regs(RF_CTX_EXC)->sp = (uint32_t) &_sp;
-    rf_regs(RF_CTX_IRQ)->sp = (uint32_t) &_sp;
-    rf_regs(RF_CTX_ECALL)->sp = (uint32_t) &_sp;
+    write_csr(0x346, &trap_regs); // mtrf
+    memset(&trap_regs, 0, sizeof(regs_t));
 
     uint32_t gp;
 
     __asm__ volatile ("\t mv %0, gp" : "=r"(gp));
 
-    rf_regs(RF_CTX_EXC)->gp = gp;
-    rf_regs(RF_CTX_IRQ)->gp = gp;
-    rf_regs(RF_CTX_ECALL)->gp = gp;
+    trap_regs.gp = gp;
+    trap_regs.sp = (uint32_t) &_sp;
 
     /* Setup trap handler function */
     if (IS_ACTIVE(MODULE_PERIPH_CLIC)) {
@@ -177,22 +178,15 @@ static void __attribute__((used)) ctrap_entry(void)
 
     // context switch
 
-    volatile regs_t* regs = rf_regs(RF_CTX_NORMAL);
-
     if (prev_active_thread) {
-        // save the previously active thread by constructing a context switch
-        // frame on the thread's stack and copying all of its registers.
-        struct context_switch_frame* prev_thread_sf = (struct context_switch_frame*) (regs->sp - sizeof(struct context_switch_frame));
-        regscpy(prev_thread_sf, regs);
-        prev_thread_sf->pc = read_csr(mepc);
-        prev_active_thread->sp = (char*) prev_thread_sf;
+        prev_active_thread->pc = read_csr(mepc);
+        regs_t* prev_regs = (regs_t*) read_csr(0x347); // read mprf
+        prev_active_thread->sp = (char*) prev_regs->sp;
     }
 
-    // switch to the requested thread by copying all of its registers out of its context switch frame
-    struct context_switch_frame* thread_sf = (struct context_switch_frame*) (void*) sched_active_thread->sp;
-    regscpy(regs, thread_sf);
-    write_csr(mepc, thread_sf->pc);
-    regs->sp = (uint32_t) sched_active_thread->sp + sizeof(struct context_switch_frame);
+    // write to mprf
+    write_csr(0x347, &sched_active_thread->regs);
+    write_csr(mepc, sched_active_thread->pc);
 }
 
 /* Marking this as interrupt to ensure an mret at the end, provided by the
@@ -201,10 +195,5 @@ static void __attribute__((used)) ctrap_entry(void)
 __attribute__((aligned(64)))
 static void __attribute__((interrupt)) trap_entry(void)
 {
-    __asm__ volatile (
-        "call ctrap_entry\n"
-        :
-        :
-        :
-        );
+    __asm__ volatile ("call ctrap_entry\n");
 }
