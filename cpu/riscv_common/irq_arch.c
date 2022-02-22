@@ -180,8 +180,7 @@ static void __attribute__((used)) ctrap_entry(void)
 
     if (prev_active_thread) {
         prev_active_thread->pc = read_csr(mepc);
-        regs_t* prev_regs = (regs_t*) read_csr(0x347); // read mprf
-        prev_active_thread->sp = (char*) prev_regs->sp;
+        prev_active_thread->sp = (char*) prev_active_thread->regs.sp;
     }
 
     // write to mprf
