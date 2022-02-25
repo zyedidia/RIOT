@@ -35,6 +35,11 @@
 
 #include "vendor/riscv_csr.h"
 
+#define CSR_MTRF 0x346
+#define CSR_MPRF 0x347
+
+#define write_csrx(reg, val) write_csr(reg, val)
+
 /* Default state of mstatus register */
 #define MSTATUS_DEFAULT     (MSTATUS_MPP | MSTATUS_MPIE)
 
@@ -56,14 +61,15 @@ regs_t trap_regs;
 
 void riscv_irq_init(void)
 {
-    write_csr(0x346, &trap_regs); // mtrf
+    write_csrx(CSR_MTRF, &trap_regs); // mtrf
     memset(&trap_regs, 0, sizeof(regs_t));
 
+    // initial gp needs to be copied into the trap context
     uint32_t gp;
-
     __asm__ volatile ("\t mv %0, gp" : "=r"(gp));
-
     trap_regs.gp = gp;
+
+    // trap stack pointer
     trap_regs.sp = (uint32_t) &_sp;
 
     /* Setup trap handler function */
@@ -162,10 +168,6 @@ static void handle_trap(uint32_t mcause)
     riscv_in_isr = 0;
 }
 
-#define CSR_MPRF 0x347
-
-#define write_csrx(reg, val) write_csr(reg, val)
-
 static void __attribute__((used)) ctrap_entry(void)
 {
     extern volatile thread_t* sched_active_thread;
@@ -174,20 +176,20 @@ static void __attribute__((used)) ctrap_entry(void)
 
     volatile thread_t* prev_active_thread = sched_active_thread;
 
-    // restore to caller if there is no context switch requested,
-    // or a context switch is not required by the scheduler
+    // restore to caller if there is no context switch requested, or a context
+    // switch is not required by the scheduler
     if (!sched_context_switch_request || !sched_run()) {
         return;
     }
 
     // context switch
-
     if (prev_active_thread) {
+        // save previous thread
         prev_active_thread->pc = read_csr(mepc);
         prev_active_thread->sp = (char*) prev_active_thread->regs.sp;
     }
 
-    // write to mprf
+    // ensure new thread regs/pc become active at trap return
     write_csrx(CSR_MPRF, &sched_active_thread->regs);
     write_csr(mepc, sched_active_thread->pc);
 }
@@ -198,5 +200,5 @@ static void __attribute__((used)) ctrap_entry(void)
 __attribute__((aligned(64)))
 static void __attribute__((interrupt)) trap_entry(void)
 {
-    __asm__ volatile ("call ctrap_entry\n");
+    __asm__ volatile ("call ctrap_entry");
 }
